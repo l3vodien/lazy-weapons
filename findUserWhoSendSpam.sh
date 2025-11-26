@@ -50,12 +50,11 @@ for CPUSER in $CPUSERS; do
     echo "User: $CPUSER"
     echo "--------------------------------------"
 
-    # Extract recipient domains
-    RECIPIENT_DOMAINS=$(echo "$USER_LINES" \
-        | grep -oP "(?<= to=<)[^>]+|(?<=@)[A-Za-z0-9.-]+\.[A-Za-z]{2,}" \
-        | sed 's/>//' \
-        | awk -F@ '{print $2}' \
-        | sort -u)
+# Extract recipient domains (POSIX-safe)
+RECIPIENT_DOMAINS=$(echo "$USER_LINES" \
+    | sed -n 's/.* to=<\([^>]*\)>.*/\1/p' \
+    | awk -F@ '{print $2}' \
+    | sort -u)
 
     for dom in $RECIPIENT_DOMAINS; do
         count=$(echo "$USER_LINES" | grep -i "$dom" | wc -l)
