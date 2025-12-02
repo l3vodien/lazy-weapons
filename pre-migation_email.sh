@@ -3,7 +3,7 @@
 # Prompt for domain
 read -p "Enter domain: " DOMAIN
 
-# Get cPanel user
+# Detect cPanel username
 CPUSER=$(/scripts/whoowns "$DOMAIN" 2>/dev/null)
 if [ -z "$CPUSER" ]; then
     echo "Unable to detect cPanel user for domain $DOMAIN"
@@ -20,7 +20,7 @@ echo "Detected cPanel user: $CPUSER"
 echo "Scanning mailboxes for domain: $DOMAIN"
 echo
 
-# Loop over each email account in the domain
+# Loop over each email account
 for EMAIL in "$MAILDIR"/*; do
     [ -d "$EMAIL" ] || continue
     EMAILUSER=$(basename "$EMAIL")
@@ -28,22 +28,16 @@ for EMAIL in "$MAILDIR"/*; do
 
     echo "=== $FULL_EMAIL ==="
 
-    # List all Dovecot mailboxes/folders for this user
+    # List all mailboxes via doveadm
     doveadm mailbox list -u "$FULL_EMAIL" 2>/dev/null | while read FOLDER; do
-        # Get mailbox size in bytes
-        SIZE_BYTES=$(doveadm mailbox status -u "$FULL_EMAIL" sizes | grep "^$FOLDER " | awk '{print $2}')
-        
+        # Get size in bytes
+        SIZE_BYTES=$(doveadm mailbox status -u "$FULL_EMAIL" sizes "$FOLDER" 2>/dev/null | awk '{print $1}')
         # Convert to human readable
-        if [ -n "$SIZE_BYTES" ]; then
-            SIZE_HR=$(numfmt --to=iec --suffix=B "$SIZE_BYTES")
-        else
-            SIZE_HR="0B"
-        fi
-
+        SIZE_HR=$(numfmt --to=iec --suffix=B ${SIZE_BYTES:-0})
         echo "$SIZE_HR    /home/$CPUSER/mail/$DOMAIN/$EMAILUSER/$FOLDER"
     done
 
-    # Optional: total mailbox size using du
+    # Optional: total mailbox size
     TOTAL_SIZE=$(du -sh "$EMAIL" 2>/dev/null | awk '{print $1}')
     echo "Total: $TOTAL_SIZE"
     echo
