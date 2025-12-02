@@ -8,7 +8,7 @@ if [ -z "$CPUSER" ]; then
     exit 1
 fi
 
-MAILDIR="/home/$CPUSER/mail/$DOMAIN"
+MAILDIR="/home*/$CPUSER/mail/$DOMAIN"
 if [ ! -d "$MAILDIR" ]; then
     echo "Mail directory not found: $MAILDIR"
     exit 1
