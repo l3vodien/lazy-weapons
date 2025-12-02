@@ -9,22 +9,18 @@ if [ -z "$CPUSER" ]; then
     exit 1
 fi
 
-# Detect correct home path
-HOMEDIR=""
-for H in /home /home1 /home2 /home3 /home*; do
-    if [ -d "$H/$CPUSER" ]; then
-        HOMEDIR="$H/$CPUSER"
-        break
-    fi
-done
+# Auto-detect home directory like "cd ~user"
+HOMEDIR=$(eval echo "~$CPUSER")
 
-if [ -z "$HOMEDIR" ]; then
-    echo "ERROR: Could not find home directory for $CPUSER"
+# Validate home directory
+if [ ! -d "$HOMEDIR" ]; then
+    echo "Home directory not found for user $CPUSER"
     exit 1
 fi
 
 MAILDIR="$HOMEDIR/mail/$DOMAIN"
 
+# Validate mail directory
 if [ ! -d "$MAILDIR" ]; then
     echo "Mail directory not found: $MAILDIR"
     exit 1
