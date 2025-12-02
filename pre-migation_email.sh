@@ -19,28 +19,13 @@ echo
 
 for EMAILDIR in "$MAILDIR"/*; do
     [ -d "$EMAILDIR" ] || continue
+
     EMAILUSER=$(basename "$EMAILDIR")
     FULL_EMAIL="$EMAILUSER@$DOMAIN"
 
+    TOTAL=$(du -sh "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+
     echo "=== $FULL_EMAIL ==="
-
-    # INBOX (main folder)
-    INBOX_SIZE=$(du -sh "$EMAILDIR" 2>/dev/null | awk '{print $1}')
-    echo "$INBOX_SIZE    $EMAILDIR/ (INBOX)"
-
-    # Loop for extra folders starting with .
-    for SUB in "$EMAILDIR"/.*; do
-        BASENAME=$(basename "$SUB")
-
-        [[ "$BASENAME" == "." || "$BASENAME" == ".." ]] && continue
-        [[ ! -d "$SUB" ]] && continue
-
-        # Convert ".Sent" → "INBOX.Sent"
-        FRIENDLY="INBOX${BASENAME}"
-
-        SIZE=$(du -sh "$SUB" 2>/dev/null | awk '{print $1}')
-        echo "$SIZE    $SUB ($FRIENDLY)"
-    done
-
+    echo "Total: $TOTAL"
     echo
 done
