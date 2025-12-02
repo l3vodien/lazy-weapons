@@ -24,17 +24,25 @@ for EMAIL in "$MAILDIR"/*; do
 
     echo "=== $FULL_EMAIL ==="
 
-    # List all folders
+    # Fetch mailbox list silently
     MAILBOXES=$(doveadm mailbox list -u "$FULL_EMAIL" 2>/dev/null)
 
-    for FOLDER in $MAILBOXES; do
-        # Correct usage: quotes around both email and folder
-        SIZE_BYTES=$(doveadm mailbox status -u "$FULL_EMAIL" sizes "$FOLDER" 2>/dev/null | awk '{print $1}')
-        SIZE_BYTES=${SIZE_BYTES:-0}
-        SIZE_HR=$(numfmt --to=iec --suffix=B "$SIZE_BYTES")
-        echo "$SIZE_HR    /home/$CPUSER/mail/$DOMAIN/$EMAILUSER/$FOLDER"
-    done
+    # Loop through each mailbox
+    while IFS= read -r FOLDER; do
+        [ -z "$FOLDER" ] && continue
 
+        # Get mailbox size using Dovecot
+        BYTES=$(doveadm mailbox status -u "$FULL_EMAIL" bytes "$FOLDER" 2>/dev/null | awk '{print $1}')
+        BYTES=${BYTES:-0}
+
+        # Convert to human readable
+        HR=$(numfmt --to=iec --suffix=B <<< "$BYTES")
+
+        echo "$HR    $EMAIL/$FOLDER"
+
+    done <<< "$MAILBOXES"
+
+    # Total physical size from disk
     TOTAL=$(du -sh "$EMAIL" 2>/dev/null | awk '{print $1}')
     echo "Total: $TOTAL"
     echo
