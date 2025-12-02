@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Prompt user
+read -p "Enter cPanel username: " CPUSER
+read -p "Enter domain: " DOMAIN
+
+MAILDIR="/home/$CPUSER/mail/$DOMAIN"
+
+if [ ! -d "$MAILDIR" ]; then
+    echo "Mail directory $MAILDIR not found!"
+    exit 1
+fi
+
+# CSV output
+OUTPUT="${DOMAIN}_email_report.csv"
+echo "Email,Folder,Emails,Size(MB)" > "$OUTPUT"
+
+# Loop over all email accounts
+for EMAIL in "$MAILDIR"/*; do
+    [ -d "$EMAIL" ] || continue
+    EMAILNAME=$(basename "$EMAIL")
+    
+    for FOLDER in "$EMAIL"/*; do
+        [ -d "$FOLDER" ] || continue
+        FOLDERNAME=$(basename "$FOLDER")
+
+        EMAIL_COUNT=$(find "$FOLDER"/cur "$FOLDER"/new -type f 2>/dev/null | wc -l)
+        TOTAL_BYTES=$(find "$FOLDER"/cur "$FOLDER"/new -type f -exec stat -c%s {} \; 2>/dev/null | awk '{sum+=$1} END {print sum}')
+        SIZE_MB=$(awk "BEGIN {printf \"%.2f\", $TOTAL_BYTES/1024/1024}")
+
+        echo "$EMAILNAME@$DOMAIN,$FOLDERNAME,$EMAIL_COUNT,$SIZE_MB" | tee -a "$OUTPUT"
+    done
+done
+
+echo "Report saved to $OUTPUT"
