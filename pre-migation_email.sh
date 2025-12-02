@@ -4,7 +4,7 @@ read -p "Enter domain: " DOMAIN
 
 CPUSER=$(/scripts/whoowns "$DOMAIN")
 if [ -z "$CPUSER" ]; then
-    echo "Cannot detect cPanel username for $DOMAIN"
+    echo "Cannot detect cPanel user for $DOMAIN"
     exit 1
 fi
 
@@ -24,11 +24,11 @@ for EMAIL in "$MAILDIR"/*; do
 
     echo "=== $FULL_EMAIL ==="
 
-    # List folders
+    # List all folders
     MAILBOXES=$(doveadm mailbox list -u "$FULL_EMAIL" 2>/dev/null)
 
     for FOLDER in $MAILBOXES; do
-        # Correct doveadm usage with field "sizes"
+        # Correct usage: quotes around both email and folder
         SIZE_BYTES=$(doveadm mailbox status -u "$FULL_EMAIL" sizes "$FOLDER" 2>/dev/null | awk '{print $1}')
         SIZE_BYTES=${SIZE_BYTES:-0}
         SIZE_HR=$(numfmt --to=iec --suffix=B "$SIZE_BYTES")
