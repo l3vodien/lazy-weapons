@@ -17,33 +17,30 @@ fi
 echo "Detected cPanel user: $CPUSER"
 echo
 
-for EMAIL in "$MAILDIR"/*; do
-    [ -d "$EMAIL" ] || continue
-    EMAILUSER=$(basename "$EMAIL")
+for EMAILDIR in "$MAILDIR"/*; do
+    [ -d "$EMAILDIR" ] || continue
+    EMAILUSER=$(basename "$EMAILDIR")
     FULL_EMAIL="$EMAILUSER@$DOMAIN"
 
     echo "=== $FULL_EMAIL ==="
 
-    # Fetch mailbox list silently
-    MAILBOXES=$(doveadm mailbox list -u "$FULL_EMAIL" 2>/dev/null)
+    # INBOX (main folder)
+    INBOX_SIZE=$(du -sh "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+    echo "$INBOX_SIZE    $EMAILDIR/ (INBOX)"
 
-    # Loop through each mailbox
-    while IFS= read -r FOLDER; do
-        [ -z "$FOLDER" ] && continue
+    # Loop for extra folders starting with .
+    for SUB in "$EMAILDIR"/.*; do
+        BASENAME=$(basename "$SUB")
 
-        # Get mailbox size using Dovecot
-        BYTES=$(doveadm mailbox status -u "$FULL_EMAIL" bytes "$FOLDER" 2>/dev/null | awk '{print $1}')
-        BYTES=${BYTES:-0}
+        [[ "$BASENAME" == "." || "$BASENAME" == ".." ]] && continue
+        [[ ! -d "$SUB" ]] && continue
 
-        # Convert to human readable
-        HR=$(numfmt --to=iec --suffix=B <<< "$BYTES")
+        # Convert ".Sent" → "INBOX.Sent"
+        FRIENDLY="INBOX${BASENAME}"
 
-        echo "$HR    $EMAIL/$FOLDER"
+        SIZE=$(du -sh "$SUB" 2>/dev/null | awk '{print $1}')
+        echo "$SIZE    $SUB ($FRIENDLY)"
+    done
 
-    done <<< "$MAILBOXES"
-
-    # Total physical size from disk
-    TOTAL=$(du -sh "$EMAIL" 2>/dev/null | awk '{print $1}')
-    echo "Total: $TOTAL"
     echo
 done
