@@ -20,9 +20,6 @@ if [ ! -d "$HOMEDIR" ]; then
     exit 1
 fi
 
-# Extract base home directory (e.g., /home, /home5)
-BASEHOME=$(dirname "$HOMEDIR")
-
 MAILDIR="$HOMEDIR/mail/$DOMAIN"
 
 if [ ! -d "$MAILDIR" ]; then
@@ -30,19 +27,21 @@ if [ ! -d "$MAILDIR" ]; then
     exit 1
 fi
 
+# Server IP (hardcoded)
+SERVER_IP="185.184.155.116"
+
 # Detect UID and GID
 USER_UID=$(id -u "$CPUSER")
 USER_GID=$(id -g "$CPUSER")
 
 echo "Detected cPanel user: $CPUSER"
 echo "Full home directory: $HOMEDIR"
-echo "Base home directory: $BASEHOME"
+echo "Mail directory: $MAILDIR"
 echo "User UID:GID = $USER_UID:$USER_GID"
 echo
 
 TOTAL_BYTES=0
 
-# Loop through email accounts
 for EMAILDIR in "$MAILDIR"/*; do
     [ -d "$EMAILDIR" ] || continue
 
@@ -55,7 +54,6 @@ for EMAILDIR in "$MAILDIR"/*; do
 
     SIZE_GB=$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 
-    # Flash entire email in red if >10GB
     if (( $(echo "$SIZE_GB > 10" | bc -l) )); then
         echo -e "=== ${RED}$FULL_EMAIL  <-- WARNING: Exceeds 10GB!${NC} ==="
         echo -e "Total: ${RED}$SIZE_HR${NC}"
@@ -66,10 +64,13 @@ for EMAILDIR in "$MAILDIR"/*; do
     echo
 done
 
-# Convert total bytes to human-readable GB
 TOTAL_GB=$(awk -v b="$TOTAL_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 
 echo "==============================="
 echo "Total email size for $CPUSER - $TOTAL_GB GB"
 echo "==============================="
-echo 
+
+# Print migration path summary at the end
+echo ""
+echo "Migration path for the domain:"
+echo "${SERVER_IP}:${MAILDIR}/"
