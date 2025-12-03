@@ -4,6 +4,7 @@ echo "==== cPanel Email Ownership Migration Tool ===="
 read -p "Old UID:GID (example 2433:2433): " OLD_UIDGID
 read -p "New cPanel user: " NEWUSER
 read -p "Domain (example: domain.com): " DOMAIN
+read -p "Old home directory (example: /home): " OLDHOME_DIR
 echo
 
 # Split UID:GID
@@ -18,14 +19,15 @@ if [ ! -d "$NEWHOME" ]; then
     exit 1
 fi
 
-# Detect NEW UID:GID automatically
+# Detect new UID:GID
 NEW_ID=$(id -u "$NEWUSER")
 NEW_GID=$(id -g "$NEWUSER")
 
 echo "Old UID:GID = $OLD_ID:$OLD_GID"
 echo "New UID:GID = $NEW_ID:$NEW_GID"
 echo
-echo "New home = $NEWHOME"
+echo "Old home path = $OLDHOME_DIR"
+echo "New home path = $NEWHOME"
 echo
 
 EMAIL_ETC="$NEWHOME/etc/$DOMAIN"
@@ -45,15 +47,11 @@ chown -R ${NEWUSER}: "$EMAIL_ETC/@pwcache"
 echo "Fixing UID:GID inside passwd..."
 sed -i "s/$OLD_ID:$OLD_GID/$NEW_ID:$NEW_GID/g" "$EMAIL_ETC/passwd"
 
-echo "Fixing username path references inside passwd..."
-# Replace only directory references, not UID/GID
-sed -i "s#/$OLD_ID/#/$NEWUSER/#g" "$EMAIL_ETC/passwd"
+echo "Fixing home directory references inside passwd..."
+# Replace old /homeX with NEW user's home parent path (/home5)
+NEW_HOME_PARENT=$(dirname "$NEWHOME")
 
-echo "Fixing home path (/homeX → /homeY)..."
-NEWHOMEPATH=$(echo "$NEWHOME" | sed 's/\/$//')
-
-# Replace old /home path with new one
-sed -i "s#/home[^/]*/#$NEWHOMEPATH/#g" "$EMAIL_ETC/passwd"
+sed -i "s#$OLDHOME_DIR#$NEW_HOME_PARENT#g" "$EMAIL_ETC/passwd"
 
 echo
 echo "=== Updated passwd file ==="
