@@ -77,6 +77,7 @@ echo "==============================="
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Print migration path
+echo
 echo "==============================="
 echo "Migration path: ${SERVER_IP}:${MAILDIR}/"
 echo "==============================="
