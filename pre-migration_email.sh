@@ -17,6 +17,9 @@ if [ ! -d "$HOMEDIR" ]; then
     exit 1
 fi
 
+# Extract base home directory (e.g., /home, /home5)
+BASEHOME=$(dirname "$HOMEDIR")
+
 MAILDIR="$HOMEDIR/mail/$DOMAIN"
 
 if [ ! -d "$MAILDIR" ]; then
@@ -29,7 +32,8 @@ USER_UID=$(id -u "$CPUSER")
 USER_GID=$(id -g "$CPUSER")
 
 echo "Detected cPanel user: $CPUSER"
-echo "Home directory: $HOMEDIR"
+echo "Full home directory: $HOMEDIR"
+echo "Base home directory: $BASEHOME"
 echo "User UID:GID = $USER_UID:$USER_GID"
 echo
 
@@ -58,7 +62,4 @@ TOTAL_GB=$(awk -v b="$TOTAL_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 echo "==============================="
 echo "Total email size for $CPUSER - $TOTAL_GB GB"
 echo "==============================="
-echo "==============================="
-echo "User UID:GID = $USER_UID:$USER_GID"
-echo "==============================="
-
+echo 
