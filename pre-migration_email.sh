@@ -72,13 +72,13 @@ TOTAL_GB=$(awk -v b="$TOTAL_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 echo "==============================="
 echo "Total email size for $CPUSER - $TOTAL_GB GB"
 echo "==============================="
-echo
+
 
 # Detect server IP dynamically
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Print migration path
-echo -e
+
 echo "==============================="
-echo "Migration path: ${SERVER_IP}:${MAILDIR}/"
+echo -e "Migration path: ${SERVER_IP}:${MAILDIR}/"
 echo "==============================="
