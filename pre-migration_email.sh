@@ -1,5 +1,8 @@
 #!/bin/bash
 
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
 read -p "Enter domain: " DOMAIN
 
 # Detect cPanel user
@@ -46,13 +49,20 @@ for EMAILDIR in "$MAILDIR"/*; do
     EMAILUSER=$(basename "$EMAILDIR")
     FULL_EMAIL="$EMAILUSER@$DOMAIN"
 
-    SIZE=$(du -sb "$EMAILDIR" 2>/dev/null | awk '{print $1}')
-    TOTAL_BYTES=$((TOTAL_BYTES + SIZE))
+    SIZE_BYTES=$(du -sb "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+    SIZE_HR=$(du -sh "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+    TOTAL_BYTES=$((TOTAL_BYTES + SIZE_BYTES))
 
-    HSIZE=$(du -sh "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+    SIZE_GB=$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 
-    echo "=== $FULL_EMAIL ==="
-    echo "Total: $HSIZE"
+    # Flash entire email in red if >10GB
+    if (( $(echo "$SIZE_GB > 10" | bc -l) )); then
+        echo -e "=== ${RED}$FULL_EMAIL  <-- WARNING: Exceeds 10GB!${NC} ==="
+        echo -e "Total: ${RED}$SIZE_HR${NC}"
+    else
+        echo "=== $FULL_EMAIL ==="
+        echo "Total: $SIZE_HR"
+    fi
     echo
 done
 
