@@ -9,10 +9,9 @@ if [ -z "$CPUSER" ]; then
     exit 1
 fi
 
-# Auto-detect home directory like "cd ~user"
+# Auto-detect home directory
 HOMEDIR=$(eval echo "~$CPUSER")
 
-# Validate home directory
 if [ ! -d "$HOMEDIR" ]; then
     echo "Home directory not found for user $CPUSER"
     exit 1
@@ -20,17 +19,20 @@ fi
 
 MAILDIR="$HOMEDIR/mail/$DOMAIN"
 
-# Validate mail directory
 if [ ! -d "$MAILDIR" ]; then
     echo "Mail directory not found: $MAILDIR"
     exit 1
 fi
 
+# Detect UID and GID
+USER_UID=$(id -u "$CPUSER")
+USER_GID=$(id -g "$CPUSER")
+
 echo "Detected cPanel user: $CPUSER"
 echo "Home directory: $HOMEDIR"
+echo "User UID:GID = $USER_UID:$USER_GID"
 echo
 
-# Track total size in bytes
 TOTAL_BYTES=0
 
 # Loop through email accounts
@@ -40,29 +42,21 @@ for EMAILDIR in "$MAILDIR"/*; do
     EMAILUSER=$(basename "$EMAILDIR")
     FULL_EMAIL="$EMAILUSER@$DOMAIN"
 
-    # Get size in bytes
-    SIZE_BYTES=$(du -sb "$EMAILDIR" 2>/dev/null | awk '{print $1}')
-    TOTAL_BYTES=$((TOTAL_BYTES + SIZE_BYTES))
+    SIZE=$(du -sb "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+    TOTAL_BYTES=$((TOTAL_BYTES + SIZE))
 
-    # Human readable per-email
-    SIZE_HR=$(du -sh "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+    HSIZE=$(du -sh "$EMAILDIR" 2>/dev/null | awk '{print $1}')
 
     echo "=== $FULL_EMAIL ==="
-    echo "Total: $SIZE_HR"
+    echo "Total: $HSIZE"
     echo
 done
 
-# Convert total bytes manually
-if (( TOTAL_BYTES >= 1073741824 )); then
-    TOTAL_HR=$(awk "BEGIN {printf \"%.2f GB\", $TOTAL_BYTES/1073741824}")
-elif (( TOTAL_BYTES >= 1048576 )); then
-    TOTAL_HR=$(awk "BEGIN {printf \"%.2f MB\", $TOTAL_BYTES/1048576}")
-elif (( TOTAL_BYTES >= 1024 )); then
-    TOTAL_HR=$(awk "BEGIN {printf \"%.2f KB\", $TOTAL_BYTES/1024}")
-else
-    TOTAL_HR="$TOTAL_BYTES Bytes"
-fi
+# Convert total bytes to human-readable GB
+TOTAL_GB=$(awk -v b="$TOTAL_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 
 echo "==============================="
-echo "Total email size for $CPUSER - $TOTAL_HR"
+echo "Total email size for $CPUSER - $TOTAL_GB GB"
+echo "User UID:GID = $USER_UID:$USER_GID"
 echo "==============================="
+
