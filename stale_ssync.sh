@@ -13,9 +13,16 @@ if [ -z "$CPUSER" ]; then
     exit 1
 fi
 
-# Detect home directory
-HOMEDIR=$(eval echo "~$CPUSER")
-if [ ! -d "$HOMEDIR" ]; then
+# Auto-detect home directory from /home*
+HOMEDIR=""
+for H in /home /home1 /home2 /home3 /home*; do
+    if [ -d "$H/$CPUSER" ]; then
+        HOMEDIR="$H/$CPUSER"
+        break
+    fi
+done
+
+if [ -z "$HOMEDIR" ] || [ ! -d "$HOMEDIR" ]; then
     echo "Home directory not found for user $CPUSER"
     exit 1
 fi
@@ -83,4 +90,3 @@ echo "   unzip $(basename $BACKUP_FILE) -d /home/DESTUSER/"
 echo "4. After verifying on destination, remove the backup from source:"
 echo "   rm -f $BACKUP_FILE"
 echo "==============================="
-
