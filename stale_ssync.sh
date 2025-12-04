@@ -73,6 +73,4 @@ echo "3. Extract the backup:"
 echo "   unzip $(basename $BACKUP_FILE) -d /home/DESTUSER/mail/"
 echo "4. After verifying on destination, remove the backup from source:"
 echo "   rm -f $BACKUP_FILE"
-echo "==============================="
-echo -e "Email migration path: ${SERVER_IP}:${MAILDIR}/"
-echo "==============================="
+
