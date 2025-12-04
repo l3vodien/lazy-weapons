@@ -69,7 +69,7 @@ if [ ! -f "$BACKUP_FILE" ]; then
     echo -e "${RED}Failed to create backup. Exiting.${NC}"
     exit 1
 fi
-
+echo "==============================="
 echo "Backup file created: $BACKUP_FILE"
 echo
 echo "Download on destination server:"
@@ -82,6 +82,4 @@ echo "   unzip $(basename $BACKUP_FILE) -d /home/DESTUSER/"
 echo "4. After verifying on destination, remove the backup from source:"
 echo "   rm -f $BACKUP_FILE"
 echo "==============================="
-echo -e "Email migration path: ${SERVER_IP}:${MAILDIR}/"
-echo -e "Etc migration path: ${SERVER_IP}:${ETCDIR}/"
-echo "==============================="
+
