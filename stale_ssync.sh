@@ -1,65 +1,78 @@
 #!/bin/bash
 
-echo "=== Email Archiver & Fallback Migration Tool ==="
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo "==== Email Backup & Migration Prep Tool ===="
 read -p "Enter domain: " DOMAIN
-echo ""
 
 # Detect cPanel user
 CPUSER=$(/scripts/whoowns "$DOMAIN")
 if [ -z "$CPUSER" ]; then
-    echo "❌ Cannot detect cPanel user for $DOMAIN"
+    echo "Cannot detect cPanel user for $DOMAIN"
     exit 1
 fi
 
 # Detect home directory
 HOMEDIR=$(eval echo "~$CPUSER")
-
 if [ ! -d "$HOMEDIR" ]; then
-    echo "❌ Home directory not found: $HOMEDIR"
+    echo "Home directory not found for user $CPUSER"
     exit 1
 fi
 
 MAILDIR="$HOMEDIR/mail/$DOMAIN"
-
 if [ ! -d "$MAILDIR" ]; then
-    echo "❌ Mail directory not found: $MAILDIR"
+    echo "Mail directory not found: $MAILDIR"
     exit 1
 fi
+
+# Detect UID and GID
+USER_UID=$(id -u "$CPUSER")
+USER_GID=$(id -g "$CPUSER")
 
 echo "Detected cPanel user: $CPUSER"
-echo "Mail directory: $MAILDIR"
-echo ""
+echo "Full home directory: $HOMEDIR"
+echo "User UID:GID = $USER_UID:$USER_GID"
+echo
 
-# Detect server public IP
-SERVER_IP=$(hostname -I | tr ' ' '\n' | grep -Ev '^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.' | head -n1)
+# Calculate total email size
+TOTAL_BYTES=0
+for EMAILDIR in "$MAILDIR"/*; do
+    [ -d "$EMAILDIR" ] || continue
+    SIZE_BYTES=$(du -sb "$EMAILDIR" 2>/dev/null | awk '{print $1}')
+    TOTAL_BYTES=$((TOTAL_BYTES + SIZE_BYTES))
+done
+TOTAL_GB=$(awk -v b="$TOTAL_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
+echo "==============================="
+echo "Total email size for $CPUSER - $TOTAL_GB GB"
+echo "==============================="
 
-if [ -z "$SERVER_IP" ]; then
-    SERVER_IP=$(hostname -I | awk '{print $1}')
-fi
+# Detect server IP dynamically
+SERVER_IP=$(hostname -I | awk '{print $1}')
 
-# Create ZIP filename
-TS=$(date +%Y%m%d_%H%M%S)
-ZIPFILE="${DOMAIN}_email_backup_${TS}.zip"
+# Prepare backup
+BACKUP_DIR="/var/www/html"
+BACKUP_FILE="${BACKUP_DIR}/${DOMAIN}-mail-$(date +%Y-%m-%d).zip"
 
-echo "Creating archive: $ZIPFILE"
-echo ""
+echo "Zipping emails for $DOMAIN..."
+zip -r "$BACKUP_FILE" "$MAILDIR" > /dev/null 2>&1
 
-# Zip email directory
-zip -r "/var/www/html/$ZIPFILE" "$MAILDIR" >/dev/null 2>&1
-
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to create ZIP archive!"
+if [ ! -f "$BACKUP_FILE" ]; then
+    echo -e "${RED}Failed to create backup. Exiting.${NC}"
     exit 1
 fi
 
-echo "✅ ZIP created successfully and moved to /var/www/html/"
-echo ""
-
-# Print final download path
-echo "========================================="
-echo "Email Archive Created:"
-echo "/var/www/html/$ZIPFILE"
-echo ""
-echo "Download URL:"
-echo "http://${SERVER_IP}/${ZIPFILE}"
-echo "========================================="
+echo "Backup file created: $BACKUP_FILE"
+echo
+echo "Download on destination server:"
+echo "1. Make sure to cd to the cPanel email directory:"
+echo "   cd /home/DESTUSER/mail/"
+echo "2. Download the backup using wget:"
+echo "   wget http://${SERVER_IP}/$(basename $BACKUP_FILE)"
+echo "3. Extract the backup:"
+echo "   unzip $(basename $BACKUP_FILE) -d /home/DESTUSER/mail/"
+echo "4. After verifying on destination, remove the backup from source:"
+echo "   rm -f $BACKUP_FILE"
+echo "==============================="
+echo -e "Email migration path: ${SERVER_IP}:${MAILDIR}/"
+echo "==============================="
