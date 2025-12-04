@@ -80,10 +80,10 @@ fi
 echo "Backup file created: $BACKUP_FILE"
 echo
 echo "==============================="
-echo "Download on destination server:"
+echo "SSH on the DESTINATION SERVER:"
 echo "1. Make sure to cd to the cPanel directories:"
 echo "   cd /home/DESTUSER/"
-echo "2. SSH on the DESTINATION SERVER and download:"
+echo "2. Download using wget:"
 echo "   wget http://${SERVER_IP}/$(basename $BACKUP_FILE)"
 echo "3. Extract the backup:"
 echo "   unzip $(basename $BACKUP_FILE) -d /home/DESTUSER/"
