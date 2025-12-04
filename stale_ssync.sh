@@ -3,7 +3,7 @@
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo "==== Email Backup & Migration Prep Tool ===="
+echo "==== Email & Mailbox Config Backup Tool ===="
 read -p "Enter domain: " DOMAIN
 
 # Detect cPanel user
@@ -21,8 +21,16 @@ if [ ! -d "$HOMEDIR" ]; then
 fi
 
 MAILDIR="$HOMEDIR/mail/$DOMAIN"
+ETCDIR="$HOMEDIR/etc/$DOMAIN"
+
+# Check directories
 if [ ! -d "$MAILDIR" ]; then
     echo "Mail directory not found: $MAILDIR"
+    exit 1
+fi
+
+if [ ! -d "$ETCDIR" ]; then
+    echo "Etc directory not found: $ETCDIR"
     exit 1
 fi
 
@@ -52,26 +60,28 @@ SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Prepare backup
 BACKUP_DIR="/var/www/html"
-BACKUP_FILE="${BACKUP_DIR}/${DOMAIN}-mail-$(date +%Y-%m-%d).zip"
+BACKUP_FILE="${BACKUP_DIR}/${DOMAIN}-mail-etc-$(date +%Y-%m-%d).zip"
 
-echo "Zipping emails for $DOMAIN..."
-zip -r "$BACKUP_FILE" "$MAILDIR" > /dev/null 2>&1
+echo "Zipping emails and etc for $DOMAIN..."
+zip -r "$BACKUP_FILE" "$MAILDIR" "$ETCDIR" > /dev/null 2>&1
 
 if [ ! -f "$BACKUP_FILE" ]; then
     echo -e "${RED}Failed to create backup. Exiting.${NC}"
     exit 1
 fi
 
-echo "==============================="
 echo "Backup file created: $BACKUP_FILE"
 echo
 echo "Download on destination server:"
-echo "1. Make sure to cd to the cPanel email directory:"
-echo "   cd /home/DESTUSER/mail/"
+echo "1. Make sure to cd to the cPanel directories:"
+echo "   cd /home/DESTUSER/"
 echo "2. Download the backup using wget:"
 echo "   wget http://${SERVER_IP}/$(basename $BACKUP_FILE)"
 echo "3. Extract the backup:"
-echo "   unzip $(basename $BACKUP_FILE) -d /home/DESTUSER/mail/"
+echo "   unzip $(basename $BACKUP_FILE) -d /home/DESTUSER/"
 echo "4. After verifying on destination, remove the backup from source:"
 echo "   rm -f $BACKUP_FILE"
+echo "==============================="
+echo -e "Email migration path: ${SERVER_IP}:${MAILDIR}/"
+echo -e "Etc migration path: ${SERVER_IP}:${ETCDIR}/"
 echo "==============================="
