@@ -69,9 +69,10 @@ if [ ! -f "$BACKUP_FILE" ]; then
     echo -e "${RED}Failed to create backup. Exiting.${NC}"
     exit 1
 fi
-echo "==============================="
+
 echo "Backup file created: $BACKUP_FILE"
 echo
+echo "==============================="
 echo "Download on destination server:"
 echo "1. Make sure to cd to the cPanel directories:"
 echo "   cd /home/DESTUSER/"
