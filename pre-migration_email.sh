@@ -40,6 +40,21 @@ echo "Base home directory: $BASEHOME"
 echo "User UID:GID = $USER_UID:$USER_GID"
 echo
 
+### GET MX RECORD ###
+MX_RECORD=$(dig +short MX "$DOMAIN" | sort -n | head -1 | awk '{print $2}')
+
+if [ -z "$MX_RECORD" ]; then
+    echo -e "${RED}No MX record found for $DOMAIN${NC}"
+else
+    ### RESOLVE MX → A RECORD ###
+    MX_IP=$(dig +short A "$MX_RECORD" | head -1)
+
+    echo "=== MX RECORD INFORMATION ==="
+    echo "MX Host : $MX_RECORD"
+    echo "MX IP   : ${MX_IP:-No A record found}"
+    echo "==============================="
+fi
+
 TOTAL_BYTES=0
 
 # Loop through email accounts
