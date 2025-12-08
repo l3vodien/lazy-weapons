@@ -70,14 +70,14 @@ for EMAILDIR in "$MAILDIR"/*; do
 
     SIZE_GB=$(awk -v b="$SIZE_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 
-   # Flash entire email in red if >10GB
-if [ "$(echo "$SIZE_GB > 10" | bc -l)" -eq 1 ]; then
-    echo -e "=== ${RED}$FULL_EMAIL  <-- WARNING: Exceeds 10GB!${NC} ==="
-    echo -e "Total: ${RED}$SIZE_HR${NC}"
-else
-    echo "=== $FULL_EMAIL ==="
-    echo "Total: $SIZE_HR"
-fi
+    # Flash entire email in red if >10GB using bc
+    if [ "$(echo "$SIZE_GB > 10" | bc -l)" -eq 1 ]; then
+        echo -e "=== ${RED}$FULL_EMAIL  <-- WARNING: Exceeds 10GB!${NC} ==="
+        echo -e "Total: ${RED}$SIZE_HR${NC}"
+    else
+        echo "=== $FULL_EMAIL ==="
+        echo "Total: $SIZE_HR"
+    fi
     echo
 done
 
@@ -88,12 +88,10 @@ echo "==============================="
 echo "Total email size for $CPUSER - $TOTAL_GB GB"
 echo "==============================="
 
-
 # Detect server IP dynamically
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Print migration path
-
 echo "==============================="
 echo -e "Email migration path: ${SERVER_IP}:${MAILDIR}/"
 echo "==============================="
