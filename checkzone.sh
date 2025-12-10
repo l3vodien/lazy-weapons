@@ -38,13 +38,22 @@ for domain in "${domains[@]}"; do
         echo "  Ping: FAIL"
     fi
 
-    # HTTP status code
+    # HTTP status code (prefer HTTPS)
     http_code=$(curl -o /dev/null -s -w "%{http_code}" https://$domain)
     if [[ "$http_code" == "000" ]]; then
         http_code=$(curl -o /dev/null -s -w "%{http_code}" http://$domain)
-        echo "  HTTP: $http_code (via http)"
+        scheme="http"
     else
-        echo "  HTTP: $http_code (via https)"
+        scheme="https"
+    fi
+    echo "  HTTP: $http_code ($scheme)"
+
+    # Uptime check – HTTP response time in seconds
+    uptime=$(curl -o /dev/null -s -w "%{time_total}" $scheme://$domain)
+    if [[ "$uptime" == "0.000" ]]; then
+        echo "  Uptime: DOWN"
+    else
+        echo "  Uptime: ${uptime}s"
     fi
 
     echo ""
