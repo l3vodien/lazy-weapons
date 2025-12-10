@@ -1,6 +1,6 @@
 #!/bin/bash
 
-domains=(
+DOMAINS=(
 icube-events.com
 l2-broadcast.com.sg
 l2-broadcast.com
@@ -16,45 +16,38 @@ admiralty.com.sg
 ar-esr-reit.com.sg
 )
 
-echo "Domain Status Check"
-echo "-------------------"
+MAX_JOBS=10   # how many checks run in parallel
 
-for domain in "${domains[@]}"; do
-    echo "Checking: $domain"
+check_domain() {
+    domain=$1
 
-    # DNS resolution
-    ip=$(dig +short $domain | head -n 1)
-    if [[ -z "$ip" ]]; then
-        echo "  DNS: FAIL (No A record)"
-    else
-        echo "  DNS: $ip"
-    fi
+    # First try HTTPS
+    result=$(curl -o /dev/null -s --max-time 2 \
+        -w "%{http_code} %{time_total}" https://$domain)
 
-    # Ping test
-    ping -c 1 -W 1 $domain &> /dev/null
-    if [[ $? -eq 0 ]]; then
-        echo "  Ping: OK"
-    else
-        echo "  Ping: FAIL"
-    fi
+    http_code=$(echo $result | awk '{print $1}')
+    time_total=$(echo $result | awk '{print $2}')
 
-    # HTTP status code (prefer HTTPS)
-    http_code=$(curl -o /dev/null -s -w "%{http_code}" https://$domain)
     if [[ "$http_code" == "000" ]]; then
-        http_code=$(curl -o /dev/null -s -w "%{http_code}" http://$domain)
+        # fallback to HTTP
+        result=$(curl -o /dev/null -s --max-time 2 \
+            -w "%{http_code} %{time_total}" http://$domain)
+
+        http_code=$(echo $result | awk '{print $1}')
+        time_total=$(echo $result | awk '{print $2}')
         scheme="http"
     else
         scheme="https"
     fi
-    echo "  HTTP: $http_code ($scheme)"
 
-    # Uptime check – HTTP response time in seconds
-    uptime=$(curl -o /dev/null -s -w "%{time_total}" $scheme://$domain)
-    if [[ "$uptime" == "0.000" ]]; then
-        echo "  Uptime: DOWN"
-    else
-        echo "  Uptime: ${uptime}s"
-    fi
+    echo -e "$domain\t$scheme\t$http_code\t${time_total}s"
+}
 
-    echo ""
-done
+export -f check_domain
+
+printf "\nChecking %d domains with %d parallel jobs…\n\n" "${#DOMAINS[@]}" "$MAX_JOBS"
+
+printf "DOMAIN\tPROTOCOL\tHTTP\tTIME\n"
+printf "----------------------------------------------\n"
+
+printf "%s\n" "${DOMAINS[@]}" | xargs -n1 -P $MAX_JOBS -I{} bash -c 'check_domain "$@"' _ {}
