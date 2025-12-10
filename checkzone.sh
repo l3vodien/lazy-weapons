@@ -16,38 +16,43 @@ admiralty.com.sg
 ar-esr-reit.com.sg
 )
 
-MAX_JOBS=10   # how many checks run in parallel
+MAX_JOBS=10
+TMPFILE=$(mktemp)
 
 check_domain() {
     domain=$1
 
-    # First try HTTPS
-    result=$(curl -o /dev/null -s --max-time 2 \
-        -w "%{http_code} %{time_total}" https://$domain)
+    # Try HTTPS first
+    result=$(curl -o /dev/null -s --max-time 2 -w "%{http_code} %{time_total}" https://$domain)
+    code=$(echo $result | awk '{print $1}')
+    time=$(echo $result | awk '{print $2}')
 
-    http_code=$(echo $result | awk '{print $1}')
-    time_total=$(echo $result | awk '{print $2}')
-
-    if [[ "$http_code" == "000" ]]; then
+    if [[ "$code" == "000" ]]; then
         # fallback to HTTP
-        result=$(curl -o /dev/null -s --max-time 2 \
-            -w "%{http_code} %{time_total}" http://$domain)
-
-        http_code=$(echo $result | awk '{print $1}')
-        time_total=$(echo $result | awk '{print $2}')
+        result=$(curl -o /dev/null -s --max-time 2 -w "%{http_code} %{time_total}" http://$domain)
+        code=$(echo $result | awk '{print $1}')
+        time=$(echo $result | awk '{print $2}')
         scheme="http"
     else
         scheme="https"
     fi
 
-    echo -e "$domain\t$scheme\t$http_code\t${time_total}s"
+    echo -e "$domain\t$scheme\t$code\t${time}s" >> "$TMPFILE"
 }
 
 export -f check_domain
+export TMPFILE
 
-printf "\nChecking %d domains with %d parallel jobs…\n\n" "${#DOMAINS[@]}" "$MAX_JOBS"
+printf "\nRunning %d parallel checks…\n\n" "$MAX_JOBS"
 
-printf "DOMAIN\tPROTOCOL\tHTTP\tTIME\n"
-printf "----------------------------------------------\n"
+# Print header BEFORE running
+echo -e "DOMAIN\tPROTOCOL\tHTTP\tTIME"
+echo -e "----------------------------------------------"
 
+# Run checks in parallel, collecting into TMPFILE
 printf "%s\n" "${DOMAINS[@]}" | xargs -n1 -P $MAX_JOBS -I{} bash -c 'check_domain "$@"' _ {}
+
+# Print final sorted results
+sort "$TMPFILE"
+
+rm -f "$TMPFILE"
