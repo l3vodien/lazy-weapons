@@ -1,80 +1,84 @@
 #!/bin/bash
 
-EMAIL="corey@versewealth.com.au"
+echo "======================================="
+echo "      EMAIL LOGIN AUDIT (Interactive)"
+echo "======================================="
+
+# Ask for email
+read -p "Enter email address: " EMAIL
+if [[ -z "$EMAIL" ]]; then
+    echo "Email cannot be empty."
+    exit 1
+fi
+
+# Ask for date range
+read -p "Enter START date (YYYY-MM-DD): " START
+read -p "Enter END date   (YYYY-MM-DD): " END
+
 USER=$(echo "$EMAIL" | cut -d@ -f1)
 DOMAIN=$(echo "$EMAIL" | cut -d@ -f2)
 
-START="2025-12-01"
-END="2025-12-11"
+echo ""
+echo "=== Email Audit for $EMAIL ==="
+echo "Range: $START to $END"
+echo ""
 
-LOGOUT="/root/email_audit_${USER}_${DOMAIN}.log"
-> "$LOGOUT"
+# Convert dates to timestamps
+START_TS=$(date -d "$START" +%s)
+END_TS=$(date -d "$END 23:59:59" +%s)
 
-echo "=== Email Audit for $EMAIL ===" | tee -a "$LOGOUT"
-echo "Date range: $START to $END" | tee -a "$LOGOUT"
-echo "" | tee -a "$LOGOUT"
-
-############################
-# Function: filter by date #
-############################
 within_range() {
-    log_date=$(date -d "$1" +%s)
-    start_date=$(date -d "$START" +%s)
-    end_date=$(date -d "$END 23:59:59" +%s)
-
-    [[ $log_date -ge $start_date && $log_date -le $end_date ]]
+    local log_ts
+    log_ts=$(date -d "$1" +%s 2>/dev/null)
+    [[ $log_ts -ge $START_TS && $log_ts -le $END_TS ]]
 }
 
-###################################
-# 1. DOVECOT IMAP/POP AUTH LOGS   #
-###################################
-echo "=== Dovecot IMAP/POP Logins ===" | tee -a "$LOGOUT"
+# ===============================
+# DOVECOT (IMAP/POP LOGINS)
+# ===============================
+echo "=== Dovecot IMAP/POP Logins ==="
 
-grep -Ei "dovecot.*(imap|pop|auth)" /var/log/maillog* /var/log/messages* | grep -i "$EMAIL" | \
-while read -r line; do
-    # Extract timestamp
-    TS="$(echo "$line" | awk '{print $1" "$2" "$3}')"
-    # Convert for filtering
+grep -Ei "dovecot.*(imap|pop|auth)" /var/log/maillog* /var/log/messages* 2>/dev/null \
+| grep -i "$EMAIL" | while read -r line; do
+    TS=$(echo "$line" | awk '{print $1" "$2" "$3}')
     if within_range "$TS"; then
         IP=$(echo "$line" | grep -oP 'rip=\K[\d\.]+')
-        STATUS=$(echo "$line" | grep -q "Login: " && echo SUCCESS || echo FAILED)
-
-        echo "$TS | IMAP/POP | $IP | $STATUS | $LINE" >> "$LOGOUT"
+        STATUS=$(echo "$line" | grep -q "Login:" && echo SUCCESS || echo FAILED)
+        echo "$TS | IMAP/POP | $IP | $STATUS"
     fi
 done
 
-###################################
-# 2. EXIM AUTH (SMTP Auth logins) #
-###################################
-echo "" | tee -a "$LOGOUT"
-echo "=== Exim Auth Logins (SMTP) ===" | tee -a "$LOGOUT"
+# ===============================
+# EXIM SMTP AUTH
+# ===============================
+echo ""
+echo "=== Exim SMTP Auth Logins ==="
 
-grep -Ei "authenticator.*login" /var/log/exim_mainlog* | grep -i "$EMAIL" | \
-while read -r line; do
+grep -Ei "authenticator.*login" /var/log/exim_mainlog* 2>/dev/null \
+| grep -i "$EMAIL" | while read -r line; do
     TS=$(echo "$line" | awk '{print $1" "$2" "$3}')
     if within_range "$TS"; then
         IP=$(echo "$line" | grep -oP '\[\K[\d\.]+')
         STATUS=$(echo "$line" | grep -q "A=" && echo SUCCESS || echo FAILED)
-        echo "$TS | SMTP-AUTH | $IP | $STATUS | $line" >> "$LOGOUT"
+        echo "$TS | SMTP-AUTH | $IP | $STATUS"
     fi
 done
 
-#############################################
-# 3. CPANEL WEBMAIL LOGS (webmail access)   #
-#############################################
-echo "" | tee -a "$LOGOUT"
-echo "=== Webmail Logins ===" | tee -a "$LOGOUT"
+# ===============================
+# CPANEL WEBMAIL LOGINS
+# ===============================
+echo ""
+echo "=== Webmail Logins ==="
 
-grep -Ei "$EMAIL" /usr/local/cpanel/logs/login_log | \
-while read -r line; do
+grep -Ei "$EMAIL" /usr/local/cpanel/logs/login_log 2>/dev/null \
+| while read -r line; do
     TS=$(echo "$line" | awk '{print $1" "$2" "$3}')
     if within_range "$TS"; then
         IP=$(echo "$line" | awk '{print $8}')
         STATUS=$(echo "$line" | grep -q "SUCCESS" && echo SUCCESS || echo FAILED)
-        echo "$TS | WEBMAIL | $IP | $STATUS | $line" >> "$LOGOUT"
+        echo "$TS | WEBMAIL | $IP | $STATUS"
     fi
 done
 
-echo "" | tee -a "$LOGOUT"
-echo "=== Audit Complete ===" | tee -a "$LOGOUT"
-echo "Saved to: $LOGOUT"
+echo ""
+echo "=== Audit Complete ==="
