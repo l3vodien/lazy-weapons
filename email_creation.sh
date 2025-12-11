@@ -35,21 +35,21 @@ while true; do
     read -s PASSWORD
     echo ""
 
-    # Create with unlimited quota
+    # Create mailbox (quota 0 = unlimited)
     RESULT=$(uapi --user="$CPUSER" Email add_pop \
         email="$USERNAME" \
         password="$PASSWORD" \
         domain="$DOMAIN" \
         quota=0 )
 
-    STATUS=$(echo "$RESULT" | grep -E "status: [01]" | awk '{print $2}')
+    STATUS=$(echo "$RESULT" | grep -m1 "status:" | awk '{print $2}')
 
     if [[ "$STATUS" == "1" ]]; then
-        echo "✅ Created: $USERNAME@$DOMAIN (UNLIMITED)"
+        echo "✅ SUCCESS: Created $USERNAME@$DOMAIN (UNLIMITED)"
     else
-        ERROR_MSG=$(echo "$RESULT" | sed -n '/errors:/,$p')
-        echo "❌ Failed to create $USERNAME@$DOMAIN"
-        echo "$ERROR_MSG"
+        echo "❌ ERROR creating $USERNAME@$DOMAIN"
+        echo "-----"
+        echo "$RESULT"
     fi
 
     echo "-------------------------------------"
