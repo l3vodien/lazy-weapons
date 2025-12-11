@@ -17,7 +17,7 @@ echo "Type 'exit' as username to quit"
 echo "-------------------------------------"
 
 while true; do
-    echo -n "Enter email username (or 'exit' to stop): "
+    echo -n "Enter email username (or 'exit' to stop) e.i. info: "
     read USERNAME
 
     [[ "$USERNAME" == "exit" ]] && break
