@@ -1,56 +1,44 @@
 #!/bin/bash
+# Interactive Ghost Maildir / Compressed Email Fixer
 
-# Ask for domain name
-read -p "Enter domain (example: perfectvalves.in): " DOMAIN
+echo "=== Ghost Maildir / Dovecot Mail Fixer ==="
 
-# Detect cPanel user
-CPUSER=$(/scripts/whoowns "$DOMAIN")
-if [ -z "$CPUSER" ]; then
-    echo "Cannot detect cPanel user for $DOMAIN"
-    exit 1
-fi
+# Ask for cPanel username and domain
+read -p "Enter cPanel username: " CPUSER
+read -p "Enter domain name: " DOMAIN
 
-HOMEDIR=$(eval echo "~$CPUSER")
-MAILDIR="$HOMEDIR/mail/$DOMAIN"
-LOGFILE="$HOMEDIR/gzip_mail_log.txt"
+MAILDIR="/home/$CPUSER/mail/$DOMAIN"
+LOGFILE="/home/$CPUSER/fix_mail_$(date +%F_%H%M%S).log"
 
-echo "=== Scanning mail for domain: $DOMAIN ==="
-echo "cPanel user: $CPUSER"
-echo "Maildir: $MAILDIR"
-echo "Log file: $LOGFILE"
+echo "User: $CPUSER" | tee -a "$LOGFILE"
+echo "Domain: $DOMAIN" | tee -a "$LOGFILE"
+echo "Mail directory: $MAILDIR" | tee -a "$LOGFILE"
 
 if [ ! -d "$MAILDIR" ]; then
-    echo "Mail directory not found: $MAILDIR"
+    echo "Mail directory not found: $MAILDIR" | tee -a "$LOGFILE"
     exit 1
 fi
 
-# Clear previous log
-> "$LOGFILE"
+# Backup compressed files
+echo "Backing up .SZ and .RSZ files..." | tee -a "$LOGFILE"
+find "$MAILDIR" -type f \( -name '*:2,SZ' -o -name '*:2,RSZ' \) -exec cp {} {}.bak \; 2>>"$LOGFILE"
 
-# Find all gzip-compressed mail files
-find "$MAILDIR" -type f | while read -r FILE; do
-    TYPE=$(file "$FILE")
-    if echo "$TYPE" | grep -q "gzip compressed data"; then
-        echo "$FILE : $TYPE" >> "$LOGFILE"
-    fi
+# Decompress files
+echo "Decompressing files..." | tee -a "$LOGFILE"
+find "$MAILDIR" -type f \( -name '*:2,SZ' -o -name '*:2,RSZ' \) | while read f; do
+    echo "Decompressing: $f" | tee -a "$LOGFILE"
+    gzip -d "$f" 2>>"$LOGFILE"
 done
 
-COUNT=$(wc -l < "$LOGFILE")
-echo "Found $COUNT gzip-compressed emails."
-echo "Log saved at $LOGFILE"
+# Fix permissions
+echo "Fixing permissions..." | tee -a "$LOGFILE"
+chown -R "$CPUSER:$CPUSER" "$MAILDIR"
+find "$MAILDIR" -type d -exec chmod 700 {} \;
+find "$MAILDIR" -type f -exec chmod 600 {} \;
 
-# Ask if user wants to decompress
-if [ "$COUNT" -gt 0 ]; then
-    read -p "Do you want to decompress these emails? (Y/N): " CONFIRM
-    if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-        while IFS= read -r FILELINE; do
-            FILE=$(echo "$FILELINE" | cut -d: -f1)
-            echo "Decompressing $FILE"
-            cp "$FILE" "$FILE.bak.gz"    # backup first
-            gzip -d "$FILE"
-        done < "$LOGFILE"
-        echo "Decompression completed. Backups are *.bak.gz"
-    fi
-fi
+# Recalculate quota
+echo "Recalculating quota..." | tee -a "$LOGFILE"
+doveadm quota recalc -u "$CPUSER@$DOMAIN" 2>>"$LOGFILE"
 
-echo "=== Done ==="
+echo "=== Mail Fix Complete ===" | tee -a "$LOGFILE"
+echo "Log file: $LOGFILE"
