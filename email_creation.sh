@@ -3,7 +3,6 @@
 echo "Enter domain:"
 read DOMAIN
 
-# Detect cPanel user that owns the domain
 CPUSER=$(/scripts/whoowns "$DOMAIN")
 
 if [[ -z "$CPUSER" ]]; then
@@ -23,7 +22,7 @@ while true; do
 
     [[ "$USERNAME" == "exit" ]] && break
 
-    # Check if email already exists
+    # Check existing email
     EXISTS=$(uapi --user="$CPUSER" Email list_pops \
         | grep -E "\"email\": \"$USERNAME@$DOMAIN\"" )
 
@@ -32,23 +31,25 @@ while true; do
         continue
     fi
 
-    # Ask for password
     echo -n "Enter password for $USERNAME@$DOMAIN: "
     read -s PASSWORD
     echo ""
 
-    # Create the email
+    # Create with unlimited quota
     RESULT=$(uapi --user="$CPUSER" Email add_pop \
         email="$USERNAME" \
         password="$PASSWORD" \
         domain="$DOMAIN" \
-        quota=0 2>&1)
+        quota=0 )
 
-    if echo "$RESULT" | grep -q '"status": 1'; then
-        echo "✅ Created: $USERNAME@$DOMAIN"
+    STATUS=$(echo "$RESULT" | grep -E "status: [01]" | awk '{print $2}')
+
+    if [[ "$STATUS" == "1" ]]; then
+        echo "✅ Created: $USERNAME@$DOMAIN (UNLIMITED)"
     else
-        echo "❌ ERROR creating $USERNAME@$DOMAIN"
-        echo "$RESULT"
+        ERROR_MSG=$(echo "$RESULT" | sed -n '/errors:/,$p')
+        echo "❌ Failed to create $USERNAME@$DOMAIN"
+        echo "$ERROR_MSG"
     fi
 
     echo "-------------------------------------"
