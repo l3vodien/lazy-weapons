@@ -1,85 +1,63 @@
 #!/bin/bash
 
-### CONFIG ###
-CPUSER="USERNAME_HERE"
-DOMAIN="DOMAIN_HERE"
+echo "=== Ghost Maildir Cleaner ==="
+read -p "Enter domain: " DOMAIN
 
+# Detect cPanel user
+CPUSER=$(/scripts/whoowns "$DOMAIN")
+if [ -z "$CPUSER" ]; then
+    echo "❌ Cannot detect cPanel user for $DOMAIN"
+    exit 1
+fi
 
 MAILDIR="/home/$CPUSER/mail/$DOMAIN"
-PASSFILE="/home/$CPUSER/etc/$DOMAIN/passwd"
 
-echo ""
-echo "=== Ghost Maildir Cleaner ==="
 echo "User: $CPUSER"
 echo "Domain: $DOMAIN"
-echo ""
+echo "Maildir: $MAILDIR"
 
-# Check files exist
-if [[ ! -d "$MAILDIR" ]]; then
-    echo "Mail directory not found: $MAILDIR"
+if [ ! -d "$MAILDIR" ]; then
+    echo "❌ Mail directory not found: $MAILDIR"
     exit 1
 fi
 
-if [[ ! -f "$PASSFILE" ]]; then
-    echo "Passwd file not found: $PASSFILE"
-    exit 1
-fi
+echo
+echo "=== Checking for ghost maildirs… ==="
 
-echo "Scanning for ghost maildirs..."
-echo ""
+declare -a GHOSTS=()
 
-ghosts=()
+# Loop through folders inside /mail/domain.com
+for DIR in "$MAILDIR"/*; do
+    if [ -d "$DIR" ]; then
+        MAILUSER=$(basename "$DIR")
 
-for d in "$MAILDIR"/*/; do
-    base=$(basename "$d" /)
+        # Skip system folders
+        [[ "$MAILUSER" == "cur" || "$MAILUSER" == "new" || "$MAILUSER" == "tmp" ]] && continue
 
-    # Skip system folders
-    [[ "$base" == "cur" || "$base" == "new" || "$base" == "tmp" ]] && continue
+        # Check if email exists in cPanel
+        EXISTS=$(uapi --user=$CPUSER Email list_pops \
+            | jq -r '.result.data[].email' \
+            | grep -w "${MAILUSER}@${DOMAIN}")
 
-    if ! grep -qE "^$base:" "$PASSFILE"; then
-        ghosts+=("$base")
+        if [ -z "$EXISTS" ]; then
+            GHOSTS+=("$MAILUSER")
+        fi
     fi
 done
 
-if [[ ${#ghosts[@]} -eq 0 ]]; then
-    echo "No ghost maildirs found. Everything looks healthy."
+if [ ${#GHOSTS[@]} -eq 0 ]; then
+    echo "✅ No ghost maildirs found."
     exit 0
 fi
 
-echo "Found ${#ghosts[@]} ghost maildirs:"
-printf '%s\n' "${ghosts[@]}"
-echo ""
+echo
+echo "Ghost maildirs detected:"
+printf '%s\n' "${GHOSTS[@]}"
 
-read -p "Proceed with deletion (Y/N)? " confirm
-if [[ "$confirm" != "Y" && "$confirm" != "y" ]]; then
-    echo "Aborted."
-    exit 0
-fi
-
-echo ""
-echo "Starting deletion..."
-echo ""
-
-for user in "${ghosts[@]}"; do
-    read -p "Delete maildir for $user ? (Y/N): " ans
-    if [[ "$ans" == "Y" || "$ans" == "y" ]]; then
-        rm -rf "$MAILDIR/$user"
-        echo "Deleted: $MAILDIR/$user"
-    else
-        echo "Skipped: $user"
-    fi
-done
-
-echo ""
-echo "=== Fixing Dovecot Quotas ==="
-echo ""
-
-for user in $(grep -oE '^[^:]+' "$PASSFILE"); do
-    echo "Recalculating quota for: $user@$DOMAIN"
-    doveadm quota recalc -u "$user@$DOMAIN" >/dev/null 2>&1
-done
-
-echo ""
-echo "Cleanup complete!"
-echo "Dovecot quota recalculated for valid accounts."
-echo ""
+echo
+read -p "Delete these ghost maildirs? (y/N): " CONFIRM
+if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
+    for GHOST in "${GHOSTS[@]}"; do
+        echo "Deleting $MAILDIR/$GHOST ..."
+        rm -rf "$MAILDIR/$GHOST"
+    do
