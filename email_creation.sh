@@ -42,7 +42,7 @@ while true; do
         email="$USERNAME" \
         password="$PASSWORD" \
         domain="$DOMAIN" \
-        quota=1024 2>&1)
+        quota=0 2>&1)
 
     if echo "$RESULT" | grep -q '"status": 1'; then
         echo "✅ Created: $USERNAME@$DOMAIN"
