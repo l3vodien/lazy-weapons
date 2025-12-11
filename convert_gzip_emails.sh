@@ -21,20 +21,20 @@ LOGFILE="$LOGDIR/mailfix_$(date +%F_%H%M%S).log"
 echo "User: $CPUSER" | tee -a "$LOGFILE"
 echo "Domain: $DOMAIN" | tee -a "$LOGFILE"
 
-# Detect mail directory automatically
-if [ -d "$HOMEDIR/mail/$DOMAIN" ]; then
-    MAILDIR="$HOMEDIR/mail/$DOMAIN"
-elif [ -d "$HOMEDIR/etc/$DOMAIN" ]; then
-    MAILDIR="$HOMEDIR/etc/$DOMAIN"
-else
+# Detect mail directory
+MAILDIR="$HOMEDIR/mail/$DOMAIN"
+if [ ! -d "$MAILDIR" ]; then
     echo "Mail directory not found for $CPUSER/$DOMAIN" | tee -a "$LOGFILE"
     exit 1
 fi
 
 echo "Mail directory: $MAILDIR" | tee -a "$LOGFILE"
 
-# Find gzip-compressed mail files (:2,SZ or :2,RSZ)
-GZFILES=$(find "$MAILDIR" -type f -name '*:2,SZ' -o -name '*:2,RSZ')
+# Remove all .bak files
+find "$MAILDIR" -type f -name '*.bak' -exec rm -f {} \; -print | tee -a "$LOGFILE"
+
+# Find gzip-compressed mail files (:2,Z, :2,SZ, :2,RSZ)
+GZFILES=$(find "$MAILDIR" -type f \( -name '*:2,Z' -o -name '*:2,SZ' -o -name '*:2,RSZ' \))
 
 if [ -z "$GZFILES" ]; then
     echo "No gzip-compressed emails found in $MAILDIR" | tee -a "$LOGFILE"
@@ -44,14 +44,15 @@ fi
 # Process each file
 for f in $GZFILES; do
     echo "Processing $f" | tee -a "$LOGFILE"
+    # Determine new filename (remove the compression suffix)
+    NEWFILE="${f%:2,Z}"
+    NEWFILE="${NEWFILE%:2,SZ}"
+    NEWFILE="${NEWFILE%:2,RSZ}"
 
-    # Backup original just in case
-    cp -p "$f" "$f.bak" 2>>"$LOGFILE"
+    # Uncompress in place
+    gunzip -c "$f" > "$NEWFILE" 2>>"$LOGFILE"
 
-    # Uncompress the file in place
-    gunzip -c "$f" > "${f%:2,SZ}" 2>>"$LOGFILE" || gunzip -c "$f" > "${f%:2,RSZ}" 2>>"$LOGFILE"
-
-    # Remove the original gzipped file
+    # Remove original compressed file
     rm -f "$f"
 done
 
