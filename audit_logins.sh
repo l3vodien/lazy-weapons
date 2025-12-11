@@ -1,8 +1,8 @@
 #!/bin/bash
 
-echo "======================================="
-echo "      EMAIL LOGIN AUDIT (Interactive)"
-echo "======================================="
+echo "==================================="
+echo "      EMAIL LOGIN AUDIT "
+echo "==================================="
 
 # Ask for email
 read -p "Enter email address: " EMAIL
