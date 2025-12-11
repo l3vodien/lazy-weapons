@@ -12,36 +12,40 @@ fi
 
 MAILDIR="/home/$CPUSER/mail/$DOMAIN"
 
-echo "User: $CPUSER"
-echo "Domain: $DOMAIN"
-echo "Maildir: $MAILDIR"
+echo "✔ User detected: $CPUSER"
+echo "✔ Domain: $DOMAIN"
+echo "✔ Maildir path: $MAILDIR"
+echo
 
 if [ ! -d "$MAILDIR" ]; then
-    echo "❌ Mail directory not found: $MAILDIR"
+    echo "❌ Mail directory not found."
     exit 1
 fi
 
+# Get valid email usernames
+VALID_USERS=$(uapi --user=$CPUSER Email list_pops \
+    | jq -r '.result.data[].email' \
+    | sed "s/@$DOMAIN//")
+
+echo "=== Valid Email Users ==="
+echo "$VALID_USERS"
 echo
-echo "=== Checking for ghost maildirs… ==="
 
 declare -a GHOSTS=()
 
-# Loop through folders inside /mail/domain.com
 for DIR in "$MAILDIR"/*; do
-    if [ -d "$DIR" ]; then
-        MAILUSER=$(basename "$DIR")
+    [ -d "$DIR" ] || continue
 
-        # Skip system folders
-        [[ "$MAILUSER" == "cur" || "$MAILUSER" == "new" || "$MAILUSER" == "tmp" ]] && continue
+    USERNAME=$(basename "$DIR")
 
-        # Check if email exists in cPanel
-        EXISTS=$(uapi --user=$CPUSER Email list_pops \
-            | jq -r '.result.data[].email' \
-            | grep -w "${MAILUSER}@${DOMAIN}")
+    # Skip system dirs
+    case "$USERNAME" in
+        cur|new|tmp) continue ;;
+    esac
 
-        if [ -z "$EXISTS" ]; then
-            GHOSTS+=("$MAILUSER")
-        fi
+    # Check if USERNAME is a valid email account
+    if ! echo "$VALID_USERS" | grep -q "^$USERNAME$"; then
+        GHOSTS+=("$USERNAME")
     fi
 done
 
@@ -50,14 +54,27 @@ if [ ${#GHOSTS[@]} -eq 0 ]; then
     exit 0
 fi
 
-echo
-echo "Ghost maildirs detected:"
+echo "=== GHOST MAILDIRS DETECTED ==="
 printf '%s\n' "${GHOSTS[@]}"
-
 echo
+
 read -p "Delete these ghost maildirs? (y/N): " CONFIRM
+
 if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
     for GHOST in "${GHOSTS[@]}"; do
-        echo "Deleting $MAILDIR/$GHOST ..."
+        echo "🗑 Deleting: $MAILDIR/$GHOST"
         rm -rf "$MAILDIR/$GHOST"
-    do
+    done
+
+    echo
+    echo "✔ Fixing quotas for real users…"
+
+    for USER in $VALID_USERS; do
+        EMAIL="$USER@$DOMAIN"
+        doveadm quota recalc -u "$EMAIL" 2>/dev/null
+    done
+
+    echo "✅ Cleanup complete!"
+else
+    echo "❌ Aborted."
+fi
