@@ -51,7 +51,7 @@ for php in "${PHP_VERSIONS[@]}"; do
 done
 
 echo
-read -rp "Select PHP version number (CTRL + X) to exit: " CHOICE
+read -rp "Select number for PHP version: " CHOICE
 
 # Validate input
 if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || [ "$CHOICE" -lt 1 ] || [ "$CHOICE" -gt "${#PHP_VERSIONS[@]}" ]; then
