@@ -51,7 +51,7 @@ for php in "${PHP_VERSIONS[@]}"; do
 done
 
 echo
-read -rp "Select number for PHP version: " CHOICE
+read -rp "Select number that corresponds for PHP version: " CHOICE
 
 # Validate input
 if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || [ "$CHOICE" -lt 1 ] || [ "$CHOICE" -gt "${#PHP_VERSIONS[@]}" ]; then
@@ -67,8 +67,8 @@ echo "    From: $CURRENT_PHP"
 echo "    To:   $NEW_PHP"
 echo
 
-# Apply change
-whmapi1 php_set_vhost_versions domain="$DOMAIN" version="$NEW_PHP" >/dev/null
+# Apply change (CORRECT API FORMAT)
+whmapi1 php_set_vhost_versions "vhost-0=$DOMAIN" "version=$NEW_PHP" >/dev/null
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to change PHP version"
@@ -80,6 +80,7 @@ echo "✅ PHP version successfully updated"
 # Verify
 echo
 echo "🔎 Verifying change..."
+
 NEW_CURRENT=$(whmapi1 php_get_vhost_versions \
     | awk -v d="$DOMAIN" '
         $1=="domain:" && $2==d {found=1}
