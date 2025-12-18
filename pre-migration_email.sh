@@ -97,21 +97,38 @@ echo "Total email size for $CPUSER - $TOTAL_GB GB"
 echo "=============================================="
 
 ### A records for all domains ####
-echo
-echo "=== DNS A RECORDS ==="
+echo "======== DNS A RECORDS ========"
 
-ALL_DOMAINS=$(grep -R "domain:" "$USERDATA_DIR" | awk '{print $2}' | sort -u)
+DOMAINS=""
+
+# Main domain
+if [ -f "$USERDATA_DIR/main" ]; then
+    DOMAINS+=$(awk '/^main_domain:/ {print $2}' "$USERDATA_DIR/main")
+fi
+
+# Addon domains
+if [ -f "$USERDATA_DIR/addons" ]; then
+    DOMAINS+=" $(awk '/^  - / {print $2}' "$USERDATA_DIR/addons")"
+fi
+
+# Parked / Aliases
+if [ -f "$USERDATA_DIR/parked" ]; then
+    DOMAINS+=" $(awk '/^  - / {print $2}' "$USERDATA_DIR/parked")"
+fi
+
+# Deduplicate
+ALL_DOMAINS=$(echo "$DOMAINS" | tr ' ' '\n' | sort -u)
 
 for D in $ALL_DOMAINS; do
     A_REC=$(dig +short A "$D" | tr '\n' ' ')
     echo "$D → ${A_REC:-No A record}"
 done
 
-echo "======================="
+echo "=============================="
 
 ### Get Domains: main, addon, parked, aliases ####
 echo
-echo "=== DOMAIN INFORMATION ==="
+echo "======== DOMAIN INFORMATION ========"
 
 USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
 
@@ -167,7 +184,7 @@ echo "======================================="
 ### CMS / CRM detection (WordPress, Joomla, Laravel, etc.) ####
 
 echo
-echo "=== CMS / CRM DETECTION ==="
+echo "======= CMS / CRM DETECTION ======="
 
 DOCROOT="$HOMEDIR/public_html"
 
