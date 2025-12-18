@@ -34,6 +34,14 @@ fi
 USER_UID=$(id -u "$CPUSER")
 USER_GID=$(id -g "$CPUSER")
 
+###Get Server hostname ###
+SERVER_NAME=$(hostname)
+
+echo
+echo "=== SERVER INFORMATION ==="
+echo "Server Name: $SERVER_NAME"
+echo "=========================="
+
 echo "Detected cPanel user: $CPUSER"
 echo "Full home directory: $HOMEDIR"
 echo "Base home directory: $BASEHOME"
@@ -87,6 +95,97 @@ TOTAL_GB=$(awk -v b="$TOTAL_BYTES" 'BEGIN { printf "%.2f", b/1024/1024/1024 }')
 echo "=============================================="
 echo "Total email size for $CPUSER - $TOTAL_GB GB"
 echo "=============================================="
+
+### A records for all domains ####
+echo
+echo "=== DNS A RECORDS ==="
+
+ALL_DOMAINS=$(grep -R "domain:" "$USERDATA_DIR" | awk '{print $2}' | sort -u)
+
+for D in $ALL_DOMAINS; do
+    A_REC=$(dig +short A "$D" | tr '\n' ' ')
+    echo "$D → ${A_REC:-No A record}"
+done
+
+echo "======================="
+
+### Get Domains: main, addon, parked, aliases ####
+echo
+echo "=== DOMAIN INFORMATION ==="
+
+USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
+
+MAIN_DOMAIN=$(grep '^main_domain:' "$USERDATA_DIR/main" 2>/dev/null | awk '{print $2}')
+
+echo "Main domain: $MAIN_DOMAIN"
+
+echo
+echo "Addon domains:"
+grep -R "addon: " "$USERDATA_DIR" | awk '{print $2}' | sort -u || echo "None"
+
+echo
+echo "Parked / Aliases:"
+grep -R "parked: " "$USERDATA_DIR" | awk '{print $2}' | sort -u || echo "None"
+
+echo "=========================="
+
+### Quick HTTP status check (200 / 301 / 403 / 500) ###
+echo
+echo "=== QUICK DOMAIN STATUS CHECK ==="
+
+for D in $ALL_DOMAINS; do
+    STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://$D")
+    echo "$D → HTTP $STATUS"
+done
+
+echo "================================="
+
+### MySQL databases + sizes ####
+
+echo
+echo "=== MYSQL DATABASE USAGE ==="
+
+DB_LIST=$(mysql -N -e "SHOW DATABASES;" | grep "^${CPUSER}_")
+
+if [ -z "$DB_LIST" ]; then
+    echo "No databases found"
+else
+    for DB in $DB_LIST; do
+        SIZE_MB=$(mysql -N -e "
+            SELECT ROUND(SUM(data_length+index_length)/1024/1024,2)
+            FROM information_schema.tables
+            WHERE table_schema='$DB';
+        ")
+        SIZE_MB=${SIZE_MB:-0}
+        echo "Database: $DB - ${SIZE_MB} MB"
+    done
+fi
+
+echo "============================"
+
+### CMS / CRM detection (WordPress, Joomla, Laravel, etc.) ####
+
+echo
+echo "=== CMS / CRM DETECTION ==="
+
+DOCROOT="$HOMEDIR/public_html"
+
+if [ -f "$DOCROOT/wp-config.php" ]; then
+    echo "Detected CMS: WordPress"
+elif [ -f "$DOCROOT/configuration.php" ]; then
+    echo "Detected CMS: Joomla"
+elif [ -f "$DOCROOT/app/etc/env.php" ]; then
+    echo "Detected CMS: Magento"
+elif [ -f "$DOCROOT/artisan" ]; then
+    echo "Detected Framework: Laravel"
+elif [ -d "$DOCROOT/sites/all" ]; then
+    echo "Detected CMS: Drupal"
+else
+    echo "CMS/CRM: Not detected (custom or static)"
+fi
+
+echo "============================"
+
 
 # Detect server IP dynamically
 SERVER_IP=$(hostname -I | awk '{print $1}')
