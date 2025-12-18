@@ -62,6 +62,7 @@ else
     echo "MX Host : $MX_RECORD"
     echo "MX IP   : ${MX_IP:-No A record found}"
     echo "==============================="
+    echo ""
 fi
 
 TOTAL_BYTES=0
