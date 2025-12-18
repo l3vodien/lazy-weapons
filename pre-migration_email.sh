@@ -265,7 +265,7 @@ else
     echo "CMS/CRM: Not detected (custom or static)"
 fi
 
-echo "======================================="
+echo "===================================="
 
 
 # Detect server IP dynamically
