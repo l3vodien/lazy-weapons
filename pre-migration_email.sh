@@ -96,28 +96,49 @@ echo "=============================================="
 echo "Total email size for $CPUSER - $TOTAL_GB GB"
 echo "=============================================="
 
-### A records for all domains ####
-echo "======== DNS A RECORDS ========"
+### Userdata directory (MUST come first)
+USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
 
-DOMAINS=""
+[ -d "$USERDATA_DIR" ] || {
+    echo "Userdata directory not found: $USERDATA_DIR"
+    exit 1
+}
+
+echo
+echo "======== DOMAIN INFORMATION ========"
 
 # Main domain
-if [ -f "$USERDATA_DIR/main" ]; then
-    DOMAINS+=$(awk '/^main_domain:/ {print $2}' "$USERDATA_DIR/main")
-fi
+MAIN_DOMAIN=$(awk '/^main_domain:/ {print $2}' "$USERDATA_DIR/main" 2>/dev/null)
+echo "Main domain: $MAIN_DOMAIN"
 
 # Addon domains
-if [ -f "$USERDATA_DIR/addons" ]; then
-    DOMAINS+=" $(awk '/^  - / {print $2}' "$USERDATA_DIR/addons")"
-fi
+ADDON_DOMAINS=$(awk '/addon:/ {print $2}' "$USERDATA_DIR"/* 2>/dev/null | sort -u)
+echo
+echo "Addon domains:"
+echo "${ADDON_DOMAINS:-None}"
 
 # Parked / Aliases
-if [ -f "$USERDATA_DIR/parked" ]; then
-    DOMAINS+=" $(awk '/^  - / {print $2}' "$USERDATA_DIR/parked")"
-fi
+PARKED_DOMAINS=$(awk '/parked:/ {print $2}' "$USERDATA_DIR"/* 2>/dev/null | sort -u)
+echo
+echo "Parked / Aliases:"
+echo "${PARKED_DOMAINS:-None}"
 
-# Deduplicate
-ALL_DOMAINS=$(echo "$DOMAINS" | tr ' ' '\n' | sort -u)
+echo "==================================="
+
+### Build full domain list
+ALL_DOMAINS=$(printf "%s\n%s\n%s\n" \
+    "$MAIN_DOMAIN" \
+    "$ADDON_DOMAINS" \
+    "$PARKED_DOMAINS" \
+    | sort -u | grep -v '^$')
+
+---
+
+### ✅ DNS A RECORDS (now works)
+
+```bash
+echo
+echo "======== DNS A RECORDS ========"
 
 for D in $ALL_DOMAINS; do
     A_REC=$(dig +short A "$D" | tr '\n' ' ')
@@ -126,28 +147,6 @@ done
 
 echo "=============================="
 
-### Get Domains: main, addon, parked, aliases ####
-echo
-echo "======== DOMAIN INFORMATION ========"
-
-USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
-
-MAIN_DOMAIN=$(grep '^main_domain:' "$USERDATA_DIR/main" 2>/dev/null | awk '{print $2}')
-
-echo "Main domain: $MAIN_DOMAIN"
-
-echo
-echo "Addon domains:"
-grep -R "addon: " "$USERDATA_DIR" | awk '{print $2}' | sort -u || echo "None"
-
-echo
-echo "Parked / Aliases:"
-grep -R "parked: " "$USERDATA_DIR" | awk '{print $2}' | sort -u || echo "None"
-
-echo "=========================="
-
-### Quick HTTP status check (200 / 301 / 403 / 500) ###
-echo
 echo "=== QUICK DOMAIN STATUS CHECK ==="
 
 for D in $ALL_DOMAINS; do
