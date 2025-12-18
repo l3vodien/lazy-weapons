@@ -173,11 +173,12 @@ DOCROOT="$HOMEDIR/public_html"
 
 # WORDPRESS
 if [ -f "$DOCROOT/wp-config.php" ]; then
-    WP_VERSION=$(grep "\$wp_version" "$DOCROOT/wp-includes/version.php" 2>/dev/null \
+    WP_VERSION=$(grep -E "wp_version\s*=" "$DOCROOT/wp-includes/version.php" 2>/dev/null \
         | head -1 | awk -F"'" '{print $2}')
+
     echo "Detected CMS: WordPress"
     echo "Version     : ${WP_VERSION:-Unknown}"
-
+    
 # JOOMLA
 elif [ -f "$DOCROOT/configuration.php" ]; then
     JOOMLA_VERSION=$(grep "public \$RELEASE" "$DOCROOT/libraries/src/Version.php" 2>/dev/null \
