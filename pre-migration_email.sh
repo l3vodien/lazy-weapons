@@ -38,9 +38,9 @@ USER_GID=$(id -g "$CPUSER")
 SERVER_NAME=$(hostname)
 
 echo
-echo "=== SERVER INFORMATION ==="
+echo "====== SERVER INFORMATION ======"
 echo "Server Name: $SERVER_NAME"
-echo "=========================="
+echo "================================"
 echo ""
 
 echo "Detected cPanel user: $CPUSER"
