@@ -188,6 +188,7 @@ fi
 
 echo "============================================"
 
+echo ""
 echo "======== DISK USAGE PER DOMAIN ========"
 
 # Function to get folder size in human-readable form
@@ -313,6 +314,7 @@ echo "===================================="
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Print migration path
+echo ""
 echo "==============================================================================="
 echo -e "Email migration path: ${SERVER_IP}:${HOMEDIR}/mail/"
 echo -e "Shadow and passwd migration path: ${SERVER_IP}:${HOMEDIR}/etc/"
