@@ -123,7 +123,7 @@ echo
 echo "Parked / Aliases:"
 echo "${PARKED_DOMAINS:-None}"
 
-echo "==================================="
+echo "====================================="
 
 ### Build full domain list
 ALL_DOMAINS=$(printf "%s\n%s\n%s\n" \
