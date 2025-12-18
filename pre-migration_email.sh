@@ -105,17 +105,17 @@ USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
 }
 
 echo
-echo "======== DOMAIN INFORMATION ========"
+echo "======== DOMAIN INFORMATION + STATUS ========"
 
 USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
 [ -d "$USERDATA_DIR" ] || { echo "Userdata directory not found: $USERDATA_DIR"; exit 1; }
 
-# Function to get authoritative A record from local zone
+# Function: get authoritative A record
 get_a_record() {
     local DOMAIN=$1
     local FOUND=0
 
-    # 1) Direct zone file
+    # Direct zone
     ZONE_FILE="/var/named/${DOMAIN}.db"
     if [ -f "$ZONE_FILE" ]; then
         A_REC=$(awk '
@@ -127,7 +127,7 @@ get_a_record() {
         [ -n "$A_REC" ] && { echo "$A_REC"; return 0; }
     fi
 
-    # 2) Subdomain lookup (parent zone)
+    # Subdomain lookup (parent zone)
     for Z in /var/named/*.db; do
         ZONENAME=$(basename "$Z" .db)
         if [[ "$DOMAIN" == *".${ZONENAME}" ]]; then
@@ -142,14 +142,20 @@ get_a_record() {
         fi
     done
 
-    # Not found
     echo "No A record (not local or CNAME)"
+}
+
+# Function: check HTTP status
+get_http_status() {
+    local DOMAIN=$1
+    curl -o /dev/null -s -w "%{http_code}" "http://$DOMAIN"
 }
 
 # --- Main domain ---
 MAIN_DOMAIN=$(awk '/^main_domain:/ {print $2}' "$USERDATA_DIR/main" 2>/dev/null)
 MAIN_IP=$(get_a_record "$MAIN_DOMAIN")
-echo "Main domain: $MAIN_DOMAIN - $MAIN_IP"
+MAIN_STATUS=$(get_http_status "$MAIN_DOMAIN")
+echo "Main domain: $MAIN_DOMAIN - $MAIN_IP - HTTP $MAIN_STATUS"
 
 # --- Addon domains ---
 ADDON_DOMAINS=$(awk '/addon:/ {print $2}' "$USERDATA_DIR"/* 2>/dev/null | sort -u)
@@ -158,7 +164,8 @@ echo "Addon domains:"
 if [ -n "$ADDON_DOMAINS" ]; then
     for D in $ADDON_DOMAINS; do
         IP=$(get_a_record "$D")
-        echo "$D - $IP"
+        STATUS=$(get_http_status "$D")
+        echo "$D - $IP - HTTP $STATUS"
     done
 else
     echo "None"
@@ -171,22 +178,14 @@ echo "Parked / Aliases:"
 if [ -n "$PARKED_DOMAINS" ]; then
     for D in $PARKED_DOMAINS; do
         IP=$(get_a_record "$D")
-        echo "$D - $IP"
+        STATUS=$(get_http_status "$D")
+        echo "$D - $IP - HTTP $STATUS"
     done
 else
     echo "None"
 fi
 
-echo "====================================="
-
-echo "=== QUICK DOMAIN STATUS CHECK ==="
-
-for D in $ALL_DOMAINS; do
-    STATUS=$(curl -o /dev/null -s -w "%{http_code}" "http://$D")
-    echo "$D → HTTP $STATUS"
-done
-
-echo "================================="
+echo "============================================"
 
 ### MySQL databases + sizes ####
 
