@@ -159,7 +159,7 @@ echo "================================="
 ### MySQL databases + sizes ####
 
 echo
-echo "=== MYSQL DATABASE USAGE ==="
+echo "========== MYSQL DATABASE USAGE =========="
 
 DB_LIST=$(mysql -N -e "SHOW DATABASES;" | grep "^${CPUSER}_")
 
