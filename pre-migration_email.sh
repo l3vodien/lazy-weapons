@@ -323,6 +323,96 @@ fi
 
 echo "===================================="
 
+echo
+echo "======= PHP vs CMS COMPATIBILITY ======="
+
+# Convert ea-phpXX to numeric (e.g. ea-php81 → 801)
+php_to_num() {
+    echo "$1" | sed 's/ea-php//' | awk '{printf "%d%02d\n",$1/10,$1%10}'
+}
+
+# CMS PHP requirements (min max)
+get_php_requirements() {
+    case "$1" in
+        WordPress) echo "704 803" ;;   # 7.4 – 8.3
+        Joomla)    echo "800 803" ;;
+        Magento)   echo "810 820" ;;
+        Laravel)   echo "800 830" ;;
+        Drupal)    echo "800 830" ;;
+        *)         echo "" ;;
+    esac
+}
+
+# Get PHP version per domain (fallback to main)
+get_domain_php() {
+    local D=$1
+    PHPVER=$(whmapi1 php_get_vhost_versions 2>/dev/null \
+        | awk -v d="$D" '
+            $1=="domain:" && $2==d {f=1}
+            f && $1=="version:" {print $2; exit}
+        ')
+    [ -z "$PHPVER" ] && PHPVER=$(whmapi1 php_get_vhost_versions 2>/dev/null \
+        | awk '
+            $1=="domain:" && $2=="'"$MAIN_DOMAIN"'" {f=1}
+            f && $1=="version:" {print $2; exit}
+        ')
+    [ -z "$PHPVER" ] && PHPVER="system"
+    echo "$PHPVER"
+}
+
+check_compat() {
+    local CMS=$1
+    local PHP=$2
+
+    [ "$PHP" = "system" ] && { echo "UNKNOWN (system PHP)"; return; }
+
+    REQ=$(get_php_requirements "$CMS")
+    [ -z "$REQ" ] && { echo "UNKNOWN CMS"; return; }
+
+    PHPNUM=$(php_to_num "$PHP")
+    MIN=$(echo "$REQ" | awk '{print $1}')
+    MAX=$(echo "$REQ" | awk '{print $2}')
+
+    if (( PHPNUM < MIN )); then
+        echo -e "${RED}MISMATCH (PHP too old)${NC}"
+    elif (( PHPNUM > MAX )); then
+        echo -e "${RED}MISMATCH (PHP too new)${NC}"
+    else
+        echo "OK"
+    fi
+}
+
+# --- Main domain ---
+MAIN_PHP=$(get_domain_php "$MAIN_DOMAIN")
+MAIN_COMPAT=$(check_compat "$CMS" "$MAIN_PHP")
+
+echo "Main domain : $MAIN_DOMAIN"
+echo "CMS         : $CMS"
+echo "PHP         : $MAIN_PHP"
+echo "Result      : $MAIN_COMPAT"
+echo "--------------------------------------"
+
+# --- Addon domains ---
+for D in $ADDON_DOMAINS; do
+    PHPVER=$(get_domain_php "$D")
+    RESULT=$(check_compat "$CMS" "$PHPVER")
+    echo "Addon domain: $D"
+    echo "PHP         : $PHPVER"
+    echo "Result      : $RESULT"
+    echo "--------------------------------------"
+done
+
+# --- Parked / Aliases (inherit main PHP) ---
+for D in $PARKED_DOMAINS; do
+    RESULT=$(check_compat "$CMS" "$MAIN_PHP")
+    echo "Alias       : $D"
+    echo "PHP         : $MAIN_PHP (inherited)"
+    echo "Result      : $RESULT"
+    echo "--------------------------------------"
+done
+
+echo "========================================="
+
 # Detect server IP dynamically
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
