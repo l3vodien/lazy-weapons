@@ -107,45 +107,77 @@ USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
 echo
 echo "======== DOMAIN INFORMATION ========"
 
-# Main domain
-MAIN_DOMAIN=$(awk '/^main_domain:/ {print $2}' "$USERDATA_DIR/main" 2>/dev/null)
-echo "Main domain: $MAIN_DOMAIN"
+USERDATA_DIR="/var/cpanel/userdata/$CPUSER"
+[ -d "$USERDATA_DIR" ] || { echo "Userdata directory not found: $USERDATA_DIR"; exit 1; }
 
-# Addon domains
+# Function to get authoritative A record from local zone
+get_a_record() {
+    local DOMAIN=$1
+    local FOUND=0
+
+    # 1) Direct zone file
+    ZONE_FILE="/var/named/${DOMAIN}.db"
+    if [ -f "$ZONE_FILE" ]; then
+        A_REC=$(awk '
+            BEGIN { IGNORECASE=1 }
+            /^[^;].*[[:space:]]A[[:space:]]/ {
+                if ($1=="@" || $1=="'"$DOMAIN"'." || $1=="'"$DOMAIN"'") print $NF
+            }
+        ' "$ZONE_FILE" | sort -u | tr '\n' ' ')
+        [ -n "$A_REC" ] && { echo "$A_REC"; return 0; }
+    fi
+
+    # 2) Subdomain lookup (parent zone)
+    for Z in /var/named/*.db; do
+        ZONENAME=$(basename "$Z" .db)
+        if [[ "$DOMAIN" == *".${ZONENAME}" ]]; then
+            SUB=${DOMAIN%%.$ZONENAME}
+            A_REC=$(awk '
+                BEGIN { IGNORECASE=1 }
+                /^[^;].*[[:space:]]A[[:space:]]/ {
+                    if ($1=="'"$SUB"'" || $1=="'"$SUB"'." ) print $NF
+                }
+            ' "$Z" | sort -u | tr '\n' ' ')
+            [ -n "$A_REC" ] && { echo "$A_REC"; return 0; }
+        fi
+    done
+
+    # Not found
+    echo "No A record (not local or CNAME)"
+}
+
+# --- Main domain ---
+MAIN_DOMAIN=$(awk '/^main_domain:/ {print $2}' "$USERDATA_DIR/main" 2>/dev/null)
+MAIN_IP=$(get_a_record "$MAIN_DOMAIN")
+echo "Main domain: $MAIN_DOMAIN - $MAIN_IP"
+
+# --- Addon domains ---
 ADDON_DOMAINS=$(awk '/addon:/ {print $2}' "$USERDATA_DIR"/* 2>/dev/null | sort -u)
 echo
 echo "Addon domains:"
-echo "${ADDON_DOMAINS:-None}"
+if [ -n "$ADDON_DOMAINS" ]; then
+    for D in $ADDON_DOMAINS; do
+        IP=$(get_a_record "$D")
+        echo "$D - $IP"
+    done
+else
+    echo "None"
+fi
 
-# Parked / Aliases
+# --- Parked / Aliases ---
 PARKED_DOMAINS=$(awk '/parked:/ {print $2}' "$USERDATA_DIR"/* 2>/dev/null | sort -u)
 echo
 echo "Parked / Aliases:"
-echo "${PARKED_DOMAINS:-None}"
+if [ -n "$PARKED_DOMAINS" ]; then
+    for D in $PARKED_DOMAINS; do
+        IP=$(get_a_record "$D")
+        echo "$D - $IP"
+    done
+else
+    echo "None"
+fi
 
 echo "====================================="
-
-### Build full domain list
-ALL_DOMAINS=$(printf "%s\n%s\n%s\n" \
-    "$MAIN_DOMAIN" \
-    "$ADDON_DOMAINS" \
-    "$PARKED_DOMAINS" \
-    | sort -u | grep -v '^$')
-
----
-
-### ✅ DNS A RECORDS (now works)
-
-```bash
-echo
-echo "======== DNS A RECORDS ========"
-
-for D in $ALL_DOMAINS; do
-    A_REC=$(dig +short A "$D" | tr '\n' ' ')
-    echo "$D → ${A_REC:-No A record}"
-done
-
-echo "=============================="
 
 echo "=== QUICK DOMAIN STATUS CHECK ==="
 
