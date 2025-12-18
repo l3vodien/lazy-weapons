@@ -187,6 +187,47 @@ fi
 
 echo "============================================"
 
+echo "======== DISK USAGE PER DOMAIN ========"
+
+# Function to get folder size in human-readable form
+get_size() {
+    local DIR=$1
+    [ -d "$DIR" ] || { echo "0"; return; }
+    du -sh "$DIR" 2>/dev/null | awk '{print $1}'
+}
+
+# --- Main domain ---
+MAIN_DOCROOT="$HOMEDIR/public_html"
+MAIN_SIZE=$(get_size "$MAIN_DOCROOT")
+echo "Main domain: $MAIN_DOMAIN - $MAIN_SIZE"
+
+# --- Addon domains ---
+if [ -n "$ADDON_DOMAINS" ]; then
+    for D in $ADDON_DOMAINS; do
+        # Default addon docroot pattern in cPanel: /home/user/addon_domain
+        ADDON_DOCROOT=$(grep -R "^documentroot:" "$USERDATA_DIR"/* 2>/dev/null \
+            | grep "$D" | awk '{print $2}' | head -1)
+        [ -z "$ADDON_DOCROOT" ] && ADDON_DOCROOT="$HOMEDIR/$D/public_html"
+        SIZE=$(get_size "$ADDON_DOCROOT")
+        echo "Addon domain: $D - $SIZE"
+    done
+else
+    echo "Addon domains: None"
+fi
+
+# --- Parked / Aliases ---
+if [ -n "$PARKED_DOMAINS" ]; then
+    for D in $PARKED_DOMAINS; do
+        # Parked domains usually point to main domain docroot
+        SIZE=$(get_size "$MAIN_DOCROOT")
+        echo "Parked / Alias: $D - $SIZE"
+    done
+else
+    echo "Parked / Aliases: None"
+fi
+
+echo "======================================="
+
 ### MySQL databases + sizes ####
 
 echo
@@ -266,46 +307,7 @@ else
 fi
 
 echo "===================================="
-echo "======== DISK USAGE PER DOMAIN ========"
 
-# Function to get folder size in human-readable form
-get_size() {
-    local DIR=$1
-    [ -d "$DIR" ] || { echo "0"; return; }
-    du -sh "$DIR" 2>/dev/null | awk '{print $1}'
-}
-
-# --- Main domain ---
-MAIN_DOCROOT="$HOMEDIR/public_html"
-MAIN_SIZE=$(get_size "$MAIN_DOCROOT")
-echo "Main domain: $MAIN_DOMAIN - $MAIN_SIZE"
-
-# --- Addon domains ---
-if [ -n "$ADDON_DOMAINS" ]; then
-    for D in $ADDON_DOMAINS; do
-        # Default addon docroot pattern in cPanel: /home/user/addon_domain
-        ADDON_DOCROOT=$(grep -R "^documentroot:" "$USERDATA_DIR"/* 2>/dev/null \
-            | grep "$D" | awk '{print $2}' | head -1)
-        [ -z "$ADDON_DOCROOT" ] && ADDON_DOCROOT="$HOMEDIR/$D/public_html"
-        SIZE=$(get_size "$ADDON_DOCROOT")
-        echo "Addon domain: $D - $SIZE"
-    done
-else
-    echo "Addon domains: None"
-fi
-
-# --- Parked / Aliases ---
-if [ -n "$PARKED_DOMAINS" ]; then
-    for D in $PARKED_DOMAINS; do
-        # Parked domains usually point to main domain docroot
-        SIZE=$(get_size "$MAIN_DOCROOT")
-        echo "Parked / Alias: $D - $SIZE"
-    done
-else
-    echo "Parked / Aliases: None"
-fi
-
-echo "======================================="
 # Detect server IP dynamically
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
