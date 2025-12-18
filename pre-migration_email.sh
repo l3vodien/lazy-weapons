@@ -93,7 +93,7 @@ SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Print migration path
 echo "==============================================================================="
-echo -e "Email migration path: ${SERVER_IP}:${MAILDIR}/"
+echo -e "Email migration path: ${SERVER_IP}:${HOMEDIR}/mail/"
 echo -e "Shadow and passwd migration path: ${SERVER_IP}:${HOMEDIR}/etc/"
 echo -e "Webfiles migration path: ${SERVER_IP}:${HOMEDIR}/public_html/"
 echo "==============================================================================="
