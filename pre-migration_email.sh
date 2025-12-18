@@ -161,7 +161,8 @@ else
     done
 fi
 
-echo "============================"
+
+echo "======================================="
 
 ### CMS / CRM detection (WordPress, Joomla, Laravel, etc.) ####
 
@@ -170,21 +171,53 @@ echo "=== CMS / CRM DETECTION ==="
 
 DOCROOT="$HOMEDIR/public_html"
 
+# WORDPRESS
 if [ -f "$DOCROOT/wp-config.php" ]; then
+    WP_VERSION=$(grep "\$wp_version" "$DOCROOT/wp-includes/version.php" 2>/dev/null \
+        | head -1 | awk -F"'" '{print $2}')
     echo "Detected CMS: WordPress"
+    echo "Version     : ${WP_VERSION:-Unknown}"
+
+# JOOMLA
 elif [ -f "$DOCROOT/configuration.php" ]; then
+    JOOMLA_VERSION=$(grep "public \$RELEASE" "$DOCROOT/libraries/src/Version.php" 2>/dev/null \
+        | awk -F"'" '{print $2}')
     echo "Detected CMS: Joomla"
+    echo "Version     : ${JOOMLA_VERSION:-Unknown}"
+
+# MAGENTO
 elif [ -f "$DOCROOT/app/etc/env.php" ]; then
+    MAGENTO_VERSION=$(grep "'version'" "$DOCROOT/composer.json" 2>/dev/null \
+        | head -1 | awk -F'"' '{print $4}')
     echo "Detected CMS: Magento"
+    echo "Version     : ${MAGENTO_VERSION:-Unknown}"
+
+# LARAVEL
 elif [ -f "$DOCROOT/artisan" ]; then
+    LARAVEL_VERSION=$(grep '"laravel/framework"' "$DOCROOT/composer.lock" 2>/dev/null \
+        | head -1 | awk -F'"' '{print $4}')
     echo "Detected Framework: Laravel"
-elif [ -d "$DOCROOT/sites/all" ]; then
+    echo "Version          : ${LARAVEL_VERSION:-Unknown}"
+
+# DRUPAL 7
+elif [ -f "$DOCROOT/includes/bootstrap.inc" ]; then
+    DRUPAL_VERSION=$(grep "define('VERSION'" "$DOCROOT/includes/bootstrap.inc" 2>/dev/null \
+        | awk -F"'" '{print $4}')
     echo "Detected CMS: Drupal"
+    echo "Version     : ${DRUPAL_VERSION:-Unknown}"
+
+# DRUPAL 8+
+elif [ -f "$DOCROOT/core/lib/Drupal.php" ]; then
+    DRUPAL_VERSION=$(grep "const VERSION" "$DOCROOT/core/lib/Drupal.php" 2>/dev/null \
+        | awk -F"'" '{print $2}')
+    echo "Detected CMS: Drupal"
+    echo "Version     : ${DRUPAL_VERSION:-Unknown}"
+
 else
     echo "CMS/CRM: Not detected (custom or static)"
 fi
 
-echo "============================"
+echo "======================================="
 
 
 # Detect server IP dynamically
