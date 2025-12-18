@@ -189,6 +189,17 @@ fi
 
 echo "============================================"
 
+# Function: get PHP version for domain (vhost)
+get_php_version() {
+    local DOMAIN=$1
+
+    whmapi1 php_get_vhost_versions 2>/dev/null \
+        | awk -v d="$DOMAIN" '
+            $1=="domain:" && $2==d {found=1}
+            found && $1=="version:" {print $2; exit}
+        '
+}
+
 echo ""
 echo "======== DISK USAGE PER DOMAIN ========"
 
