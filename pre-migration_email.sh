@@ -41,6 +41,7 @@ echo
 echo "=== SERVER INFORMATION ==="
 echo "Server Name: $SERVER_NAME"
 echo "=========================="
+echo ""
 
 echo "Detected cPanel user: $CPUSER"
 echo "Full home directory: $HOMEDIR"
