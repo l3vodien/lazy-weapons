@@ -279,11 +279,12 @@ elif [ -f "$DOCROOT/configuration.php" ]; then
 
 # MAGENTO
 elif [ -f "$DOCROOT/app/etc/env.php" ]; then
-    MAGENTO_VERSION=$(grep "'version'" "$DOCROOT/composer.json" 2>/dev/null \
-        | head -1 | awk -F'"' '{print $4}')
+    MAGENTO_VERSION=$(awk -F'"' '
+        /magento\/product-community-edition/ { print $4 }
+    ' "$DOCROOT/composer.json" 2>/dev/null)
+
     echo "Detected CMS: Magento"
     echo "Version     : ${MAGENTO_VERSION:-Unknown}"
-
 # LARAVEL
 elif [ -f "$DOCROOT/artisan" ]; then
     LARAVEL_VERSION=$(grep '"laravel/framework"' "$DOCROOT/composer.lock" 2>/dev/null \
